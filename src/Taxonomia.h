@@ -3,6 +3,7 @@
 
 #include <iostream>
 #include <vector>
+#include <stack>
 
 using namespace std;
 
@@ -112,7 +113,14 @@ public:
 		void eliminarCategoria();
 
 	private:
-		// COMPLETAR
+        iterator(Nodo* inicio);
+        
+        Nodo* actual;
+        //Pila de punteros a los padres y los hijos
+        //Estructura: la pila tiene valores <puntero al padre, indice del hijo por donde bajó>
+        //Asumo que: puntero al padre != NULL
+        //           indice del hijo por donde bajó = 0 .. (padre.hijos.size() - 1)
+        stack<std::pair<Nodo*, int>> padres;
 	};
 
 	// Devuelve un iterador válido al principio de la taxonomía.

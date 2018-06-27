@@ -81,34 +81,46 @@ void Taxonomia<T>::mostrar(ostream& os) const {
 // Devuelve un iterador válido al principio de la taxonomía.
 template<class T>
 typename Taxonomia<T>::iterator Taxonomia<T>::begin() {
-	assert(false);
+    return iterator(_raiz);
 }
 
 // Devuelve un iterador válido al final de la taxonomía.
 template<class T>
 typename Taxonomia<T>::iterator Taxonomia<T>::end() {
-	assert(false);
+    iterator it=iterator(_raiz);
+    //ubico el it al final de la taxonomia, recorro por el ultimo elem del vector
+    while(it.actual->hijos.size() > 0){
+        //Si hay hijos agarro el último insertado
+        //Guardo el padre y la pos en el array de hijos para poder recorrer con --
+        it.padres.emplace(it.actual, it.actual->hijos.size() - 1);
+        //Cambio el nodo por el siguiente
+        it.actual = it.actual->hijos.back(); // .back() es el último insertado, deberia dar lo mismo que arriba
+    }
+    return it;
 }
 
 // Constructor por defecto del iterador.
 // (Nota: puede construir un iterador inválido).
 template<class T>
-Taxonomia<T>::iterator::iterator() {
-	assert(false);
-}
+Taxonomia<T>::iterator::iterator():actual(nullptr), padres(){}
 
+template<class T>
+Taxonomia<T>::iterator::iterator(Taxonomia<T>::Nodo *elem) {
+    //Donde empieza a recorrer
+    actual = elem;
+}
 // Referencia mutable al nombre de la categoría actual.
 // Pre: el iterador está posicionado sobre una categoría.
 template<class T>
 T& Taxonomia<T>::iterator::operator*() const {
-	assert(false);
+    return actual->valor;
 }
 
 // Cantidad de subcategorías de la categoría actual.
 // Pre: el iterador está posicionado sobre una categoría.
 template<class T>
 int Taxonomia<T>::iterator::cantSubcategorias() const {
-	assert(false);
+    return  actual->hijos.size();
 }
 
 // Ubica el iterador sobre la i-ésima subcategoría.
@@ -116,14 +128,15 @@ int Taxonomia<T>::iterator::cantSubcategorias() const {
 // y además 0 <= i < cantSubcategorias().
 template<class T>
 void Taxonomia<T>::iterator::subcategoria(int i) {
-	assert(false);
+	padres.push(make_pair(actual,i));
+    actual=actual->hijos[i];
 }
 
 // Devuelve true sii la categoría actual es la raíz. 
 // Pre: el iterador está posicionado sobre una categoría.
 template<class T>
 bool Taxonomia<T>::iterator::esRaiz() const {
-	assert(false);
+    return padres.size()==0;
 }
 
 // Ubica el iterador sobre la supercategoría de la categoría
@@ -132,7 +145,9 @@ bool Taxonomia<T>::iterator::esRaiz() const {
 // y además !esRaiz()
 template<class T>
 void Taxonomia<T>::iterator::supercategoria() {
-	assert(false);
+    //sa supercat es el pmr padre de la pila
+    actual=padres.top().first;
+    padres.pop();
 }
 
 // Compara dos iteradores por igualdad.
@@ -140,7 +155,7 @@ void Taxonomia<T>::iterator::supercategoria() {
 template<class T>
 bool Taxonomia<T>::iterator::operator==(
 		const Taxonomia<T>::iterator& otro) const {
-	assert(false);
+    return actual==otro.actual;
 }
 
 // Ubica el iterador sobre la categoría siguiente a la actual
@@ -150,7 +165,56 @@ bool Taxonomia<T>::iterator::operator==(
 // de la taxonomía.
 template<class T>
 void Taxonomia<T>::iterator::operator++() {
-	assert(false);
+    //Me fijo si el nodo actual tiene hijos
+    //  Si tiene:
+    //      Si no recorri todos los hijos: Voy al siguiente hijo
+    //      Si recorri todos: Vuelvo al padre
+    //  Si no tiene hijos: Vuelvo al padre
+	stack<pair<Nodo*,int>> copiaPila(padres);
+    bool final= true;
+    if(actual->hijos.size()!=0){
+        final=false;
+    }
+    while(!copiaPila.empty()){
+        if(copiaPila.top().second != copiaPila.top().first->hijos.size()-1){
+            final=false;
+            break;
+        }
+        copiaPila.pop();
+    }
+    if(final)
+        return;
+    if(actual->hijos.size()!=0){
+        //Si el nodo tiene hijos por recorrer, avanzo al sig
+        //Para ver por que hijo se recorrió, me fijo en el stack de padres
+        //No borro un padre hasta  que no recori el stack
+        //Si no se entro a este padre
+        if(padres.empty() || padres.top().first!=actual){
+            //agrego el nodo a la pila
+            padres.emplace(actual,0);
+            //el actual es el primer hijo
+            actual=actual->hijos[0];
+        }
+    } else{
+        //el nodo no tiene hijos, vuelvo al padre
+        actual=padres.top().first;
+        //volvi a un hijo
+        if(padres.top().second +1 <actual->hijos.size()){
+            actual=actual->hijos[padres.top().second+1];
+            padres.top().second= padres.top().second+1;
+        } else{
+            //ya no tengo hijos, avanzo a otro padre
+            padres.pop();
+            //subo al padre y verifico que pueda recorrer a los hijos
+            while(padres.top().second+1 >= padres.top().first->hijos.size()){
+                padres.pop();
+            }
+            //sacando los padres que no me sirven
+            padres.top().second= padres.top().second+1;
+            actual=padres.top().first->hijos[padres.top().second];
+        }
+    }
+    
 }
 
 // Ubica el iterador sobre la categoría anterior a la actual
@@ -160,7 +224,25 @@ void Taxonomia<T>::iterator::operator++() {
 // Pre: el iterador está posicionado sobre una categoría.
 template<class T>
 void Taxonomia<T>::iterator::operator--() {
-	assert(false);
+    if(padres.empty()){
+        //voy hasta el ultimoo
+        while(actual->hijos.size() > 0){
+            padres.emplace(actual, actual->hijos.size() - 1);
+            actual = actual->hijos.back();
+        }
+    } else{ //no es la raiz
+            if(padres.top().second==0){
+                actual= padres.top().first;
+                padres.pop();
+            } else{
+                padres.top().second=padres.top().second-1;
+                actual=padres.top().first->hijos[padres.top().second];
+                while (actual->hijos.size()>0){
+                    padres.emplace(actual,actual->hijos.size()-1);
+                    actual=actual->hijos.back();
+                }
+            }
+    }
 }
 
 // Inserta una subcategoría con el nombre indicado
@@ -171,7 +253,13 @@ void Taxonomia<T>::iterator::operator--() {
 // y además 0 <= i <= cantSubcategorias().
 template<class T>
 void Taxonomia<T>::iterator::insertarSubcategoria(int i, const T& nombre) {
-	assert(false);
+    Nodo* nuevaCategoria= new Taxonomia<T>::Nodo();
+    nuevaCategoria->valor=nombre;
+    actual->hijos.push_back(nuevaCategoria);
+    
+    for(int j=actual->hijos.size()-1;i<j;j--){
+        swap(actual->hijos[j],actual->hijos[j-1]);
+    }
 }
 
 // Elimina la categoría actual de la taxonomía
@@ -183,6 +271,21 @@ void Taxonomia<T>::iterator::insertarSubcategoria(int i, const T& nombre) {
 // y además !esRaiz().
 template<class T>
 void Taxonomia<T>::iterator::eliminarCategoria() {
-	assert(false);
+	Taxonomia<T>::iterator itHijos(actual);
+    for(int i=0; itHijos.actual->hijos.size();i++){
+        itHijos.subcategoria(0);
+        itHijos.eliminarCategoria();
+    }
+    delete actual;
+    actual= padres.top().first;
+    
+    int indiceHijoBorrado= padres.top().second;
+    padres.pop();
+    
+    for(int i=indiceHijoBorrado;i<actual->hijos.size()-1;i++){
+        swap(actual->hijos[i],actual->hijos[i+1]);
+    }
+    //ajusto el tamaño
+    actual->hijos.resize(actual->hijos.size()-1);
 }
 
