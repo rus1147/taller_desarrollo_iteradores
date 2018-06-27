@@ -291,4 +291,3 @@ TEST(test_taxonomia_iterator, taxonomia_iterator_eliminarCategoria) {
 	ASSERT_EQ(*it, "a");
 	ASSERT_EQ(it.cantSubcategorias(), 0);
 }
-
